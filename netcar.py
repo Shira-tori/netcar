@@ -12,8 +12,30 @@ def server():
     print("[*] Starting server...")
     print(f"[*] Listening at {args[2]} port {args[3]}...")
 
+def tryToConnect(client):
+    print("[*] Connecting...")
+    try:
+        client.connect((target, port))
+        print("[*] Success!")
+    except:
+        print("[!] Unable to connect.")
+
+#TODO fix sending
+
+def tryToSend(client, data):
+    print("[*] Sending...")
+    try:
+        client.send(data)
+        print("[*] Success!")
+    except:
+        print("[!] Unable to send.")
+
 def client():
-    print("client")
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client:
+        tryToConnect(client)
+        print("What will you send?")
+        data = input("> ")
+        tryToSend(client, data)
 
 def printUsage():
     print("Usage: ./netcar [-b listen] destination port")
@@ -41,7 +63,10 @@ def parse():
 
 if __name__ == '__main__':
     parse()
-    print(listen, target, port)
+    if listen:
+        server()
+    else:
+        client()
         
         
         
