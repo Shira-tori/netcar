@@ -24,8 +24,8 @@ def tryToConnect(client):
 
 def tryToSend(client, data):
     print("[*] Sending...")
-    len_sent = client.send(data)
-    if len_sent == len(data):
+    len_sent = client.send(data + b'\n')
+    if len_sent == len(data) + 1:
         print("[*] Success!")
     elif len_sent == 0:
         print("[*] Failed to send.")
@@ -37,15 +37,18 @@ def tryToSend(client, data):
 def recieveData(client):
     print("[*] Recieveing Data...")
     data = client.recv(4096)
-    print(data)
+    print(data.decode('utf-8'))
+
+#TODO: fix successfully connecting to loopback address without something listening to it
 
 def client():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client:
         tryToConnect(client)
-        print("What will you send?")
-        data = input("> ")
-        tryToSend(client, data.encode('utf-8'))
-        recieveData(client)
+        while True:
+            print("What will you send?")
+            data = input("> ")
+            tryToSend(client, data.encode('utf-8'))
+            recieveData(client)
 
 def printUsage():
     print("Usage: ./netcar [-b listen] destination port")
