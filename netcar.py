@@ -15,27 +15,37 @@ def server():
 def tryToConnect(client):
     print("[*] Connecting...")
     try:
-        client.connect((target, port))
+        client.connect_ex((target, port))
         print("[*] Success!")
     except:
-        print("[!] Unable to connect.")
-
-#TODO fix sending
+        if socket.error == OSError:
+            print("[!] OSError: Can't connect to the address.")
+        sys.exit(1)
 
 def tryToSend(client, data):
     print("[*] Sending...")
-    try:
-        client.send(data)
+    len_sent = client.send(data)
+    if len_sent == len(data):
         print("[*] Success!")
-    except:
-        print("[!] Unable to send.")
+    elif len_sent == 0:
+        print("[*] Failed to send.")
+    else:
+        print(f"[*] Failed to send {len(data)-len_sent} bytes.")
+
+#TODO: fix reciveData not recieving data from google
+
+def recieveData(client):
+    print("[*] Recieveing Data...")
+    data = client.recv(4096)
+    print(data)
 
 def client():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client:
         tryToConnect(client)
         print("What will you send?")
         data = input("> ")
-        tryToSend(client, data)
+        tryToSend(client, data.encode('utf-8'))
+        recieveData(client)
 
 def printUsage():
     print("Usage: ./netcar [-b listen] destination port")
