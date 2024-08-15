@@ -12,11 +12,12 @@ def server():
     print("[*] Starting server...")
     print(f"[*] Listening at {args[2]} port {args[3]}...")
 
-def tryToConnect(client):
+def tryToConnect():
     print("[*] Connecting...")
     try:
-        client.connect_ex((target, port))
+        clientSocket = socket.create_connection((target, port))
         print("[*] Success!")
+        return clientSocket
     except:
         if socket.error == OSError:
             print("[!] OSError: Can't connect to the address.")
@@ -32,23 +33,20 @@ def tryToSend(client, data):
     else:
         print(f"[*] Failed to send {len(data)-len_sent} bytes.")
 
-#TODO: fix reciveData not recieving data from google
+#TODO: find out how to only recieve the right size of data
 
 def recieveData(client):
     print("[*] Recieveing Data...")
     data = client.recv(4096)
     print(data.decode('utf-8'))
 
-#TODO: fix successfully connecting to loopback address without something listening to it
-
 def client():
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client:
-        tryToConnect(client)
-        while True:
-            print("What will you send?")
-            data = input("> ")
-            tryToSend(client, data.encode('utf-8'))
-            recieveData(client)
+    clientSocket = tryToConnect()
+    while True:
+        print("What will you send?")
+        data = input("> ")
+        tryToSend(clientSocket, data.encode('utf-8'))
+        recieveData(clientSocket)
 
 def printUsage():
     print("Usage: ./netcar [-b listen] destination port")
