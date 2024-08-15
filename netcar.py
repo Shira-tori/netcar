@@ -42,11 +42,13 @@ def tryToSend(client, data):
 
 def recieveData(client):
     print("[*] Recieveing Data...")
-    data = client.recv(bufferSize)
+    loop = True
 
-    while data:
+    while loop:
         data = client.recv(bufferSize)
         print(data.decode('utf-8'))
+        if not data:
+            loop = False
 
 def client():
     clientSocket = tryToConnect()
