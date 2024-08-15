@@ -3,6 +3,7 @@ import socket
 import sys
 import argparse
 
+bufferSize = 4096
 args = sys.argv
 listen = False
 target = ""
@@ -25,24 +26,32 @@ def tryToConnect():
 
 def tryToSend(client, data):
     print("[*] Sending...")
-    len_sent = client.send(data + b'\n')
-    if len_sent == len(data) + 1:
-        print("[*] Success!")
-    elif len_sent == 0:
-        print("[*] Failed to send.")
-    else:
-        print(f"[*] Failed to send {len(data)-len_sent} bytes.")
+    try:
+        len_sent = client.send(data + b'\n')
+        if len_sent == len(data) + 1:
+            print("[*] Success!")
+        elif len_sent == 0:
+            print("[*] Failed to send.")
+        else:
+            print(f"[*] Failed to send {len(data)-len_sent} bytes.")
+    except BrokenPipeError:
+        print("[!] Lost connection.")
+        exit()
 
 #TODO: find out how to only recieve the right size of data
 
 def recieveData(client):
     print("[*] Recieveing Data...")
-    data = client.recv(4096)
-    print(data.decode('utf-8'))
+    data = client.recv(bufferSize)
+
+    while data:
+        data = client.recv(bufferSize)
+        print(data.decode('utf-8'))
 
 def client():
     clientSocket = tryToConnect()
     while True:
+        clientSocket.proto
         print("What will you send?")
         data = input("> ")
         tryToSend(clientSocket, data.encode('utf-8'))
