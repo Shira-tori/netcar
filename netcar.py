@@ -1,7 +1,7 @@
 #!/bin/python3
 import socket
 import sys
-import asyncio
+import threading
 
 bufferSize = 4096
 args = sys.argv
@@ -9,7 +9,7 @@ listen = False
 target = ""
 port = 0
 
-#TODO: fix bugs
+#TODO: fix having to press ctrl-c twice to quit
 
 def server() -> None:
     print("[*] Starting server...")
@@ -28,7 +28,6 @@ def tryToConnect() -> socket.socket:
     print("[*] Connecting...")
     try:
         clientSocket = socket.create_connection((target, port))
-        clientSocket.setblocking(False)
         print("[*] Success!")
         return clientSocket
     except:
@@ -36,50 +35,40 @@ def tryToConnect() -> socket.socket:
             print("[!] OSError: Can't connect to the address.")
         sys.exit(1)
 
-async def tryToSend(client: socket.socket, data: bytes, 
-                    eventLoop: asyncio.AbstractEventLoop) -> None:
+def tryToSend(client):
+    print("What will you send?")
+    data = input("> ")
+    data = data.encode('utf-8')
     print("[*] Sending...")
     try:
-        len_sent = await eventLoop.run_in_executor(None, client.send, data + b'\n')
-        if len_sent == len(data) + 1:
-            print("[*] Success!")
-        elif len_sent == 0:
+        len_sent = client.send(data + b'\n')
+        if len_sent == 0:
             print("[*] Failed to send.")
-        else:
+        elif len_sent != len(data) + 1:
             print(f"[*] Failed to send {len(data)-len_sent} bytes.")
     except BrokenPipeError:
         print("[!] Lost connection.")
         exit()
+    except KeyboardInterrupt:
+        exit()
 
-async def recieveData(client: socket.socket, 
-                      eventLoop: asyncio.AbstractEventLoop):
-    print("[*] Recieveing Data...")
+def recieveData(client):
     loop = True
 
     while loop:
-        try:
-            data = await eventLoop.run_in_executor(None, client.recv, 
-                                                   bufferSize)
-            print(data.decode('utf-8').rstrip())
-            if not data:
-                print("[*] Done!")
-                loop = False
-            if data == b'':
-                loop = False
-        except BlockingIOError:
-            continue
+        data = client.recv(bufferSize)
+        print('\n[*] Recieved data: ', data.decode('utf-8').rstrip(), 
+              '\n> ', end='')
 
-async def client() -> None:
+        if not data:
+            loop = False
+
+def client() -> None:
     clientSocket: socket.socket = tryToConnect()
-    eventLoop = asyncio.get_event_loop()
     while True:
-        print("What will you send?")
-        data = await eventLoop.run_in_executor(None, input, '> ')
-        tasks = [
-                tryToSend(clientSocket, data.encode('utf-8'), eventLoop),
-                recieveData(clientSocket, eventLoop)
-                ]
-        await asyncio.gather(*tasks)
+        threading.Thread(target=recieveData, 
+                         args=[clientSocket]).start()
+        tryToSend(clientSocket)
 
 def printUsage() -> None:
     print("Usage: ./netcar [-b listen] destination port")
@@ -110,7 +99,7 @@ if __name__ == '__main__':
     if listen:
         server()
     else:
-        asyncio.run(client())
+        client()
         
         
         
