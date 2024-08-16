@@ -9,9 +9,20 @@ listen = False
 target = ""
 port = 0
 
+#TODO: Do asynchronous shit
+
 def server():
     print("[*] Starting server...")
-    print(f"[*] Listening at {args[2]} port {args[3]}...")
+    serverSocket = socket.create_server((target, port))
+    print("[*] Listening...")
+    conn, addr = serverSocket.accept()
+    data = b""
+    with conn:
+        print("[*] Connected by: ", addr)
+        while True:
+            data = conn.recv(bufferSize)
+            if not data: break
+            print(data.decode("utf-8").rstrip())
 
 def tryToConnect():
     print("[*] Connecting...")
@@ -38,8 +49,6 @@ def tryToSend(client, data):
         print("[!] Lost connection.")
         exit()
 
-#TODO: find out how to only recieve the right size of data
-
 def recieveData(client):
     print("[*] Recieveing Data...")
     loop = True
@@ -53,7 +62,6 @@ def recieveData(client):
 def client():
     clientSocket = tryToConnect()
     while True:
-        clientSocket.proto
         print("What will you send?")
         data = input("> ")
         tryToSend(clientSocket, data.encode('utf-8'))
