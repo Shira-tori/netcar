@@ -1,7 +1,7 @@
 #!/bin/python3
 import socket
 import sys
-import argparse
+import threading
 
 bufferSize = 4096
 args = sys.argv
@@ -9,7 +9,7 @@ listen = False
 target = ""
 port = 0
 
-#TODO: Do asynchronous shit
+#TODO: fix having to press ctrl-c twice to quit
 
 def server():
     print("[*] Starting server...")
@@ -35,7 +35,10 @@ def tryToConnect():
             print("[!] OSError: Can't connect to the address.")
         sys.exit(1)
 
-def tryToSend(client, data):
+def tryToSend(client):
+    print("What will you send?")
+    data = input("> ")
+    data = data.encode('utf-8')
     print("[*] Sending...")
     try:
         len_sent = client.send(data + b'\n')
@@ -48,24 +51,26 @@ def tryToSend(client, data):
     except BrokenPipeError:
         print("[!] Lost connection.")
         exit()
+    except KeyboardInterrupt:
+        exit()
 
 def recieveData(client):
-    print("[*] Recieveing Data...")
     loop = True
 
     while loop:
         data = client.recv(bufferSize)
-        print(data.decode('utf-8'))
+        print('\n[*] Recieved data: ', data.decode('utf-8').rstrip(), 
+              '\n> ', end='')
+
         if not data:
             loop = False
 
 def client():
     clientSocket = tryToConnect()
     while True:
-        print("What will you send?")
-        data = input("> ")
-        tryToSend(clientSocket, data.encode('utf-8'))
-        recieveData(clientSocket)
+        threading.Thread(target=recieveData, 
+                         args=[clientSocket]).start()
+        tryToSend(clientSocket)
 
 def printUsage():
     print("Usage: ./netcar [-b listen] destination port")
