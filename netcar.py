@@ -16,7 +16,6 @@ def server() -> None:
     serverSocket = socket.create_server((target, port))
     print("[*] Listening...")
     conn, addr = serverSocket.accept()
-    data = b""
     with conn:
         print("[*] Connected by: ", addr)
         while True:
@@ -36,10 +35,8 @@ def tryToConnect() -> socket.socket:
         sys.exit(1)
 
 def tryToSend(client: socket.socket) -> None:
-    print("What will you send?")
-    data = input("> ")
+    data = input()
     data = data.encode('utf-8')
-    print("[*] Sending...")
     try:
         len_sent = client.send(data + b'\n')
         if len_sent == 0:
@@ -57,18 +54,21 @@ def recieveData(client: socket.socket) -> None:
 
     while loop:
         data = client.recv(bufferSize)
-        print('\n[*] Recieved data: ', data.decode('utf-8').rstrip(), 
-              '\n> ', end='')
-
+        print(data.decode('utf-8').rstrip())
         if not data:
             loop = False
 
 def client() -> None:
     clientSocket: socket.socket = tryToConnect()
+    receiveThread = threading.Thread(target=recieveData, 
+                                     args=[clientSocket])
+    receiveThread.start()
     while True:
-        threading.Thread(target=recieveData, 
-                         args=[clientSocket]).start()
-        tryToSend(clientSocket)
+        try:
+            tryToSend(clientSocket)
+        except KeyboardInterrupt:
+            receiveThread.join()
+            sys.exit(1)
 
 def printUsage() -> None:
     print("Usage: ./netcar [-b listen] destination port")
