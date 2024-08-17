@@ -35,7 +35,7 @@ def tryToConnect() -> socket.socket:
             print("[!] OSError: Can't connect to the address.")
         sys.exit(1)
 
-def tryToSend(client):
+def tryToSend(client: socket.socket) -> None:
     print("What will you send?")
     data = input("> ")
     data = data.encode('utf-8')
@@ -52,7 +52,7 @@ def tryToSend(client):
     except KeyboardInterrupt:
         exit()
 
-def recieveData(client):
+def recieveData(client: socket.socket) -> None:
     loop = True
 
     while loop:
