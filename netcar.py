@@ -5,12 +5,14 @@ import threading
 
 BUFFERSIZE = 4096
 listen = False
+state = threading.Event()
 target = ""
 port = 0
 
 def try_to_connect() -> socket.socket:
     try:
         clientSocket = socket.create_connection((target, port))
+        print("[*] Connected.")
         return clientSocket
     except ConnectionRefusedError:
         print(f"[!] Could not connect to {target}:{port}. Connection Refused.")
@@ -18,25 +20,41 @@ def try_to_connect() -> socket.socket:
 
 
 def recv_data(clientSocket: socket.socket) -> None:
+    while True:
+        data = clientSocket.recv(BUFFERSIZE).decode('utf-8').rstrip()
+        print(data)
+        if not data:
+            print("[!] Server disconnected.")
+            break
+
+def send_data(clientSocket: socket.socket) -> None:
     try:
         while True:
-            data = (clientSocket.recv(BUFFERSIZE).decode('utf-8')).rstrip()
-            print(data)
-    except KeyboardInterrupt:
-        raise KeyboardInterrupt
+                data = (input() + '\n').encode('utf-8')
+                clientSocket.send(data)
+
+                if not state.is_set():
+                    break
+
+    except BrokenPipeError:
+        print("[!] Connection closed.")
+        return
         
 
 def client() -> None:
+    global state
     clientSocket = try_to_connect()
 
-    thread = threading.Thread(target=recv_data, args=[clientSocket])
+    thread = threading.Thread(target=send_data, args=[clientSocket])
     thread.start()
     try:
+        recv_data(clientSocket)
         thread.join()
     except KeyboardInterrupt:
+        state.set()
         print("Exiting...")
-        clientSocket.close()
-        exit(0)
+    clientSocket.close()
+    exit(0)
     
     
 
