@@ -1,107 +1,69 @@
 #!/bin/python3
 import socket
-import sys
+import argparse
 import threading
 
 bufferSize = 4096
-args = sys.argv
 listen = False
 target = ""
 port = 0
 
-#TODO: fix having to press ctrl-c twice to quit
-
-def server() -> None:
-    print("[*] Starting server...")
-    serverSocket = socket.create_server((target, port))
-    print("[*] Listening...")
-    conn, addr = serverSocket.accept()
-    with conn:
-        print("[*] Connected by: ", addr)
-        while True:
-            data = conn.recv(bufferSize)
-            if not data: break
-            print(data.decode("utf-8").rstrip())
-
-def tryToConnect() -> socket.socket:
-    print("[*] Connecting...")
+def try_to_connect() -> socket.socket:
     try:
         clientSocket = socket.create_connection((target, port))
-        print("[*] Success!")
         return clientSocket
-    except:
-        if socket.error == OSError:
-            print("[!] OSError: Can't connect to the address.")
-        sys.exit(1)
+    except ConnectionRefusedError:
+        print(f"[!] Could not connect to {target}:{port}. Connection Refused.")
+        exit()
 
-def tryToSend(client: socket.socket) -> None:
-    data = input()
-    data = data.encode('utf-8')
+
+def recv_data(clientSocket: socket.socket) -> None:
     try:
-        len_sent = client.send(data + b'\n')
-        if len_sent == 0:
-            print("[*] Failed to send.")
-        elif len_sent != len(data) + 1:
-            print(f"[*] Failed to send {len(data)-len_sent} bytes.")
-    except BrokenPipeError:
-        print("[!] Lost connection.")
-        exit()
+        while True:
+            data = (clientSocket.recv(bufferSize).decode('utf-8')).rstrip()
+            print(data)
     except KeyboardInterrupt:
-        exit()
-
-def recieveData(client: socket.socket) -> None:
-    loop = True
-
-    while loop:
-        data = client.recv(bufferSize)
-        print(data.decode('utf-8').rstrip())
-        if not data:
-            loop = False
+        raise KeyboardInterrupt
+        
 
 def client() -> None:
-    clientSocket: socket.socket = tryToConnect()
-    receiveThread = threading.Thread(target=recieveData, 
-                                     args=[clientSocket])
-    receiveThread.start()
-    while True:
-        try:
-            tryToSend(clientSocket)
-        except KeyboardInterrupt:
-            receiveThread.join()
-            sys.exit(1)
+    clientSocket = try_to_connect()
 
-def printUsage() -> None:
-    print("Usage: ./netcar [-b listen] destination port")
-    print("Example: ")
-    print("\t./netcar -b 0.0.0.0 9999 ")
-    print("\t./netcar www.google.com 9999 ")
+    thread = threading.Thread(target=recv_data, args=[clientSocket])
+    thread.start()
+    try:
+        thread.join()
+    except KeyboardInterrupt:
+        print("Exiting...")
+        clientSocket.close()
+        exit(0)
+    
+    
 
-def parse() -> None:
-    global listen
+def server() -> None:
+    pass
+
+def parse_args() -> None:
     global target
     global port
+    global listen
 
-    if len(args) <= 1 or len(args) > 4:
-        printUsage()
-        exit()
-    for i in args:
-        if i == "-b":
-            listen = True
-            continue
-        elif i.isdigit():
-            port = int(i)
-            continue
-        else:
-            target = i
+    parse = argparse.ArgumentParser(prog="netcat", 
+                                    description="A netcat clone.") 
+    parse.add_argument('target_addr')
+    parse.add_argument('port', type=int)
+    parse.add_argument('-b', '--bind', action='store_true')
+
+    args = parse.parse_args()
+
+    target = args.target_addr
+    port = args.port
+    listen = args.bind
 
 if __name__ == '__main__':
-    parse()
+    parse_args()        
     if listen:
         server()
-    else:
-        client()
-        
-        
-        
+        exit(0)
+    client()
 
-        
