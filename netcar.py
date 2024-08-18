@@ -3,7 +3,7 @@ import socket
 import argparse
 import threading
 
-bufferSize = 4096
+BUFFERSIZE = 4096
 listen = False
 target = ""
 port = 0
@@ -20,7 +20,7 @@ def try_to_connect() -> socket.socket:
 def recv_data(clientSocket: socket.socket) -> None:
     try:
         while True:
-            data = (clientSocket.recv(bufferSize).decode('utf-8')).rstrip()
+            data = (clientSocket.recv(BUFFERSIZE).decode('utf-8')).rstrip()
             print(data)
     except KeyboardInterrupt:
         raise KeyboardInterrupt
