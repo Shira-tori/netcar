@@ -4,67 +4,72 @@ import argparse
 import threading
 
 BUFFERSIZE = 4096
-listen = False
-state = threading.Event()
-target = ""
-port = 0
 
-def try_to_connect() -> socket.socket:
-    try:
-        clientSocket = socket.create_connection((target, port))
-        print("[*] Connected.")
-        return clientSocket
-    except ConnectionRefusedError:
-        print(f"[!] Could not connect to {target}:{port}. Connection Refused.")
-        exit()
+class Netcar:
+    def __init__(self, listen: bool, state: threading.Event, 
+                 target: str, port: int, BUFFERSIZE: int):
+        self.listen = listen
+        self.state = state
+        self.target = target
+        self.port = port
+        self.BUFFERSIZE = BUFFERSIZE
+
+    def run(self):
+        if self.listen == True:
+            self.server()
+            exit()
+        self.client()
+
+    def try_to_connect(self) -> socket.socket:
+        try:
+            clientSocket = socket.create_connection((target, port))
+            print("[*] Connected.")
+            return clientSocket
+        except ConnectionRefusedError:
+            print(f"[!] Could not connect to {target}:{port}. Connection Refused.")
+            exit()
 
 
-def recv_data(clientSocket: socket.socket) -> None:
-    while True:
-        data = clientSocket.recv(BUFFERSIZE).decode('utf-8').rstrip()
-        print(data)
-        if not data:
-            print("[!] Server disconnected.")
-            break
-
-def send_data(clientSocket: socket.socket) -> None:
-    try:
+    def recv_data(self, clientSocket: socket.socket) -> None:
         while True:
-                data = (input() + '\n').encode('utf-8')
-                clientSocket.send(data)
+            data = clientSocket.recv(BUFFERSIZE).decode('utf-8').rstrip()
+            print(data)
+            if not data:
+                print("[!] Server disconnected.")
+                break
 
-                if not state.is_set():
-                    break
+    def send_data(self, clientSocket: socket.socket) -> None:
+        try:
+            while True:
+                    data = (input() + '\n').encode('utf-8')
+                    clientSocket.send(data)
 
-    except BrokenPipeError:
-        print("[!] Connection closed.")
-        return
+                    if not state.is_set():
+                        break
+
+        except BrokenPipeError:
+            print("[!] Connection closed.")
+            return
+            
+
+    def client(self) -> None:
+        clientSocket = self.try_to_connect()
+
+        thread = threading.Thread(target=self.send_data, args=[clientSocket])
+        thread.start()
+        try:
+            self.recv_data(clientSocket)
+            thread.join()
+        except KeyboardInterrupt:
+            self.state.set()
+            print("Exiting...")
+        clientSocket.close()
+        exit(0)
         
+    def server(self) -> None:
+        pass
 
-def client() -> None:
-    global state
-    clientSocket = try_to_connect()
-
-    thread = threading.Thread(target=send_data, args=[clientSocket])
-    thread.start()
-    try:
-        recv_data(clientSocket)
-        thread.join()
-    except KeyboardInterrupt:
-        state.set()
-        print("Exiting...")
-    clientSocket.close()
-    exit(0)
-    
-    
-
-def server() -> None:
-    pass
-
-def parse_args() -> None:
-    global target
-    global port
-    global listen
+def parse_args() -> tuple:
 
     parse = argparse.ArgumentParser(prog="netcat", 
                                     description="A netcat clone.") 
@@ -78,10 +83,11 @@ def parse_args() -> None:
     port = args.port
     listen = args.bind
 
+    return target, port, listen
+
 if __name__ == '__main__':
-    parse_args()        
-    if listen:
-        server()
-        exit(0)
-    client()
+    target, port, listen = parse_args()        
+    state = threading.Event()
+    netcar = Netcar(listen, state, target, port, BUFFERSIZE)
+    netcar.run()
 
