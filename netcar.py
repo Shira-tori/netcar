@@ -1,18 +1,31 @@
 #!/bin/python3
-import socket
 import argparse
+import shlex
+import socket
+import subprocess
 import threading
 
 BUFFERSIZE = 4096
 
+# fix sending keystrokes
+
+
 class Netcar:
-    def __init__(self, listen: bool, state: threading.Event, 
-                 target: str, port: int, BUFFERSIZE: int):
+
+
+    def __init__(self, listen: bool, 
+                 state: threading.Event,
+                 target: str, 
+                 port: int, 
+                 execute: bool,
+                 BUFFERSIZE: int):
         self.listen = listen
         self.state = state
         self.target = target
         self.port = port
+        self.execute = execute
         self.BUFFERSIZE = BUFFERSIZE
+
 
     def run(self):
         if self.listen == True:
@@ -20,13 +33,14 @@ class Netcar:
             exit()
         self.client()
 
+
     def try_to_connect(self) -> socket.socket:
         try:
-            clientSocket = socket.create_connection((target, port))
+            clientSocket = socket.create_connection((self.target, self.port))
             print("[*] Connected.")
             return clientSocket
         except ConnectionRefusedError:
-            print(f"[!] Could not connect to {target}:{port}. Connection Refused.")
+            print(f"[!] Could not connect to {self.target}:{self.port}. Connection Refused.")
             exit()
 
 
@@ -38,13 +52,14 @@ class Netcar:
                 break
             print(data)
 
+
     def send_data(self, clientSocket: socket.socket) -> None:
         try:
             while True:
                     data = (input() + '\n').encode('utf-8')
                     clientSocket.send(data)
 
-                    if not state.is_set():
+                    if not self.state.is_set():
                         break
 
         except BrokenPipeError:
@@ -55,7 +70,8 @@ class Netcar:
     def client(self) -> None:
         clientSocket = self.try_to_connect()
 
-        thread = threading.Thread(target=self.send_data, args=[clientSocket])
+        thread = threading.Thread(target=self.send_data, 
+                                  args=[clientSocket])
         thread.start()
         try:
             self.recv_data(clientSocket)
@@ -66,14 +82,23 @@ class Netcar:
         clientSocket.close()
         exit(0)
 
-    def handle(self, serverSocket):
+    def handle(self, serverSocket) -> None:
         sock, _ = serverSocket.accept()
-        while True:
-            data = sock.recv(self.BUFFERSIZE)
-            if not data:
-                print("[*] Disconnected.")
-                break
-            print(data.decode().rstrip())
+        if self.execute:
+            while True:
+                sock.send(b'<WOW#:> ')
+                data = sock.recv(4096)
+                result = subprocess.check_output(shlex.split(data.decode().rstrip()),
+                                                 stderr=subprocess.STDOUT)
+                sock.send(result)
+        else:
+            sock, _ = serverSocket.accept()
+            while True:
+                data = sock.recv(self.BUFFERSIZE)
+                if not data:
+                    print("[*] Disconnected.")
+                    break
+                print(data.decode().rstrip())
 
         
     def server(self) -> None:
@@ -83,25 +108,27 @@ class Netcar:
         handleThread.start()
 
 
-def parse_args() -> tuple:
+def parse_args() -> argparse.Namespace:
 
     parse = argparse.ArgumentParser(prog="netcat", 
                                     description="A netcat clone.") 
     parse.add_argument('target_addr')
     parse.add_argument('port', type=int)
     parse.add_argument('-b', '--bind', action='store_true')
+    parse.add_argument('-e', '--execute', action='store_true')
 
     args = parse.parse_args()
 
-    target = args.target_addr
-    port = args.port
-    listen = args.bind
+    return args
 
-    return target, port, listen
 
 if __name__ == '__main__':
-    target, port, listen = parse_args()        
+    args = parse_args()        
     state = threading.Event()
-    netcar = Netcar(listen, state, target, port, BUFFERSIZE)
+    netcar = Netcar(args.bind, state, 
+                    args.target_addr, 
+                    args.port, 
+                    args.execute, 
+                    BUFFERSIZE)
     netcar.run()
 
