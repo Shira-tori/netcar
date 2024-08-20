@@ -33,10 +33,10 @@ class Netcar:
     def recv_data(self, clientSocket: socket.socket) -> None:
         while True:
             data = clientSocket.recv(BUFFERSIZE).decode('utf-8').rstrip()
-            print(data)
             if not data:
                 print("[!] Server disconnected.")
                 break
+            print(data)
 
     def send_data(self, clientSocket: socket.socket) -> None:
         try:
@@ -62,12 +62,26 @@ class Netcar:
             thread.join()
         except KeyboardInterrupt:
             self.state.set()
-            print("Exiting...")
+            print("\nExiting...")
         clientSocket.close()
         exit(0)
+
+    def handle(self, serverSocket):
+        sock, _ = serverSocket.accept()
+        while True:
+            data = sock.recv(self.BUFFERSIZE)
+            if not data:
+                print("[*] Disconnected.")
+                break
+            print(data.decode().rstrip())
+
         
     def server(self) -> None:
-        pass
+        serverSocket = socket.create_server((self.target, self.port))
+        handleThread = threading.Thread(target=self.handle, 
+                                        args=[serverSocket,])
+        handleThread.start()
+
 
 def parse_args() -> tuple:
 
