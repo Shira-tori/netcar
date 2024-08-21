@@ -18,12 +18,14 @@ class Netcar:
                  target: str, 
                  port: int, 
                  execute: bool,
+                 upload: str,
                  BUFFERSIZE: int):
         self.listen = listen
         self.state = state
         self.target = target
         self.port = port
         self.execute = execute
+        self.upload = upload
         self.BUFFERSIZE = BUFFERSIZE
 
 
@@ -82,22 +84,28 @@ class Netcar:
         clientSocket.close()
         exit(0)
 
+    def getData(self, sock: socket.socket):
+        data = sock.recv(self.BUFFERSIZE)
+        if not data:
+            print("[*] Disconnected.")
+            exit()
+
+        return data
+
     def handle(self, serverSocket) -> None:
         sock, _ = serverSocket.accept()
+        data = self.getData(sock)
         if self.execute:
             while True:
                 sock.send(b'<WOW#:> ')
-                data = sock.recv(4096)
                 result = subprocess.check_output(shlex.split(data.decode().rstrip()),
                                                  stderr=subprocess.STDOUT)
                 sock.send(result)
+        elif self.upload:
+            with open(f'./{self.upload}', 'wb') as f:
+                f.write(data)
         else:
-            sock, _ = serverSocket.accept()
             while True:
-                data = sock.recv(self.BUFFERSIZE)
-                if not data:
-                    print("[*] Disconnected.")
-                    break
                 print(data.decode().rstrip())
 
         
@@ -116,6 +124,7 @@ def parse_args() -> argparse.Namespace:
     parse.add_argument('port', type=int)
     parse.add_argument('-b', '--bind', action='store_true')
     parse.add_argument('-e', '--execute', action='store_true')
+    parse.add_argument('-u', '--upload', action='store')
 
     args = parse.parse_args()
 
@@ -129,6 +138,7 @@ if __name__ == '__main__':
                     args.target_addr, 
                     args.port, 
                     args.execute, 
+                    args.upload, 
                     BUFFERSIZE)
     netcar.run()
 
